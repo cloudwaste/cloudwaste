@@ -11,7 +11,7 @@ import (
 )
 
 func main() {
-	sess := session.Must(session.NewSession(aws.NewConfig().WithRegion("us-east-1")))
+	sess := session.Must(session.NewSession())
 
 	// unusedAddresses, err := ec2.GetUnusedElasticIPAddresses(sess)
 	// if err != nil {
