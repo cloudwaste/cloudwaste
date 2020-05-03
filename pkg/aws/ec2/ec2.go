@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/pricing"
 
-	wasteAWS "github.com/timmyers/cloudwaste/pkg/aws"
+	util "github.com/timmyers/cloudwaste/pkg/aws/util"
 )
 
 var (
@@ -23,25 +23,49 @@ type EC2 struct {
 	Client ec2iface.EC2API
 }
 
-func (client *EC2) GetUnusedElasticIPAddresses(ctx context.Context) ([]*ec2.Address, error) {
+type ElasticIPAddress struct {
+	r *ec2.Address
+}
+
+type NatGateway struct {
+	r *ec2.NatGateway
+}
+
+func (a ElasticIPAddress) Type() string {
+	return "Elastic IP Address"
+}
+
+func (a ElasticIPAddress) ID() string {
+	return aws.StringValue(a.r.AllocationId)
+}
+
+func (r NatGateway) Type() string {
+	return "Elastic IP Address"
+}
+
+func (r NatGateway) ID() string {
+	return aws.StringValue(r.r.NatGatewayId)
+}
+
+func (client *EC2) GetUnusedElasticIPAddresses(ctx context.Context) ([]*ElasticIPAddress, error) {
 	resp, err := client.Client.DescribeAddressesWithContext(ctx, &ec2.DescribeAddressesInput{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	var unusedAddresses []*ec2.Address
+	var unusedAddresses []*ElasticIPAddress
 	for _, address := range resp.Addresses {
 		if address.AssociationId == nil {
-			unusedAddresses = append(unusedAddresses, address)
+			unusedAddresses = append(unusedAddresses, &ElasticIPAddress{address})
 		}
 	}
 
 	return unusedAddresses, nil
 }
 
-func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*ec2.NatGateway, error) {
-	var unusedGateways []*ec2.NatGateway
+func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*NatGateway, error) {
+	var unusedGateways []*NatGateway
 
 	err := client.Client.DescribeNatGatewaysPagesWithContext(ctx, &ec2.DescribeNatGatewaysInput{},
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
@@ -56,7 +80,7 @@ func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*ec2.NatGateway,
 				})
 
 				if len(resp.RouteTables) == 0 {
-					unusedGateways = append(unusedGateways, gateway)
+					unusedGateways = append(unusedGateways, &NatGateway{gateway})
 				}
 			}
 
@@ -70,8 +94,8 @@ func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*ec2.NatGateway,
 	return unusedGateways, nil
 }
 
-func GetUnusedElasticIPAddressPrice(session *session.Session) (*wasteAWS.Price, error) {
-	regionName := wasteAWS.RegionLongNames[*session.Config.Region]
+func GetUnusedElasticIPAddressPrice(session *session.Session) (*util.Price, error) {
+	regionName := util.RegionLongNames[*session.Config.Region]
 
 	client := pricing.New(session)
 	resp, err := client.GetProductsWithContext(context.TODO(), &pricing.GetProductsInput{
@@ -145,7 +169,7 @@ func GetUnusedElasticIPAddressPrice(session *session.Session) (*wasteAWS.Price, 
 					return nil, couldntParseError
 				}
 
-				return &wasteAWS.Price{
+				return &util.Price{
 					Unit: unit,
 					Rate: usd,
 				}, nil
