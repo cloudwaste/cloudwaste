@@ -39,6 +39,9 @@ func (m *mockedEC2) DescribeRouteTablesWithContext(ctx context.Context, input *e
 
 func TestGetUnusedElasticIPAddresses(t *testing.T) {
 	assert := assert.New(t)
+
+	alloc2 := "allocation2"
+
 	m := new(mockedEC2)
 	m.On("DescribeAddressesWithContext", mock.Anything, mock.Anything, mock.Anything).
 		Return(&ec2.DescribeAddressesOutput{
@@ -57,6 +60,7 @@ func TestGetUnusedElasticIPAddresses(t *testing.T) {
 	client := EC2{Client: m}
 	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.TODO())
 	assert.Equal(1, len(unusedAddresses))
+	assert.Equal(alloc2, unusedAddresses[0].ID())
 	assert.Nil(err)
 
 	m.On("DescribeAddressesWithContext", mock.Anything, mock.Anything, mock.Anything).
