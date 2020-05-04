@@ -31,6 +31,10 @@ type NatGateway struct {
 	r *ec2.NatGateway
 }
 
+type EBSVolume struct {
+	r *ec2.Volume
+}
+
 func (a ElasticIPAddress) Type() string {
 	return "Elastic IP Address"
 }
@@ -47,25 +51,33 @@ func (r NatGateway) ID() string {
 	return aws.StringValue(r.r.NatGatewayId)
 }
 
-func (client *EC2) GetUnusedElasticIPAddresses(ctx context.Context) ([]*ElasticIPAddress, error) {
+func (r EBSVolume) Type() string {
+	return "EBS Volume"
+}
+
+func (r EBSVolume) ID() string {
+	return aws.StringValue(r.r.VolumeId)
+}
+
+func (client *EC2) GetUnusedElasticIPAddresses(ctx context.Context) ([]util.AWSResourceObject, error) {
 	resp, err := client.Client.DescribeAddressesWithContext(ctx, &ec2.DescribeAddressesInput{})
 
 	if err != nil {
 		return nil, err
 	}
 
-	var unusedAddresses []*ElasticIPAddress
+	var unusedAddresses []util.AWSResourceObject
 	for _, address := range resp.Addresses {
 		if address.AssociationId == nil {
-			unusedAddresses = append(unusedAddresses, &ElasticIPAddress{address})
+			unusedAddresses = append(unusedAddresses, util.AWSResourceObject{R: &ElasticIPAddress{address}})
 		}
 	}
 
 	return unusedAddresses, nil
 }
 
-func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*NatGateway, error) {
-	var unusedGateways []*NatGateway
+func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]util.AWSResourceObject, error) {
+	var unusedGateways []util.AWSResourceObject
 
 	err := client.Client.DescribeNatGatewaysPagesWithContext(ctx, &ec2.DescribeNatGatewaysInput{},
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
@@ -80,7 +92,7 @@ func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*NatGateway, err
 				})
 
 				if len(resp.RouteTables) == 0 {
-					unusedGateways = append(unusedGateways, &NatGateway{gateway})
+					unusedGateways = append(unusedGateways, util.AWSResourceObject{R: &NatGateway{gateway}})
 				}
 			}
 
@@ -92,6 +104,26 @@ func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]*NatGateway, err
 	}
 
 	return unusedGateways, nil
+}
+
+func (client *EC2) GetUnusedEBSVolumes(ctx context.Context) ([]util.AWSResourceObject, error) {
+	var unusedVolumes []util.AWSResourceObject
+
+	err := client.Client.DescribeVolumesPagesWithContext(ctx, &ec2.DescribeVolumesInput{},
+		func(page *ec2.DescribeVolumesOutput, lastPage bool) bool {
+			for _, volume := range page.Volumes {
+				if *volume.State == "available" {
+					unusedVolumes = append(unusedVolumes, util.AWSResourceObject{R: &EBSVolume{volume}})
+				}
+			}
+			return true
+		})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return unusedVolumes, nil
 }
 
 func GetUnusedElasticIPAddressPrice(session *session.Session) (*util.Price, error) {

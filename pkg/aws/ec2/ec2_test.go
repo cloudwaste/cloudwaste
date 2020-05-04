@@ -37,6 +37,13 @@ func (m *mockedEC2) DescribeRouteTablesWithContext(ctx context.Context, input *e
 	return args.Get(0).(*ec2.DescribeRouteTablesOutput), args.Error(1)
 }
 
+func (m *mockedEC2) DescribeVolumesPagesWithContext(ctx context.Context, input *ec2.DescribeVolumesInput, fn func(*ec2.DescribeVolumesOutput, bool) bool, opts ...request.Option) error {
+	args := m.Called(ctx, input, fn)
+
+	fn(args.Get(0).(*ec2.DescribeVolumesOutput), true)
+	return args.Error(1)
+}
+
 func TestGetUnusedElasticIPAddresses(t *testing.T) {
 	assert := assert.New(t)
 	m := new(mockedEC2)
@@ -55,14 +62,14 @@ func TestGetUnusedElasticIPAddresses(t *testing.T) {
 		}, nil).Once()
 
 	client := EC2{Client: m}
-	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.TODO())
+	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.Background())
 	assert.Equal(1, len(unusedAddresses))
 	assert.Nil(err)
 
 	m.On("DescribeAddressesWithContext", mock.Anything, mock.Anything, mock.Anything).
 		Return(&ec2.DescribeAddressesOutput{}, errors.New("AWS Error"))
 
-	unusedAddresses, err = client.GetUnusedElasticIPAddresses(context.TODO())
+	unusedAddresses, err = client.GetUnusedElasticIPAddresses(context.Background())
 	assert.Nil(unusedAddresses)
 	assert.NotNil(err)
 }
@@ -86,7 +93,7 @@ func TestGetUnusedNATGateways(t *testing.T) {
 		}, nil).Once()
 
 	client := EC2{Client: m}
-	unusedNatGateways, err := client.GetUnusedNATGateways(context.TODO())
+	unusedNatGateways, err := client.GetUnusedNATGateways(context.Background())
 	assert.Equal(1, len(unusedNatGateways))
 	assert.Nil(err)
 
@@ -108,7 +115,35 @@ func TestGetUnusedNATGateways(t *testing.T) {
 			},
 		}, nil).Once()
 
-	unusedNatGateways, err = client.GetUnusedNATGateways(context.TODO())
+	unusedNatGateways, err = client.GetUnusedNATGateways(context.Background())
 	assert.Equal(0, len(unusedNatGateways))
+	assert.Nil(err)
+}
+
+func TestGetUnusedVolumes(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockedEC2)
+
+	const vol1Name = "vol1"
+
+	m.On("DescribeVolumesPagesWithContext", mock.Anything, mock.Anything, mock.Anything).
+		Return(&ec2.DescribeVolumesOutput{
+			Volumes: []*ec2.Volume{
+				{ // used
+					VolumeId: aws.String(vol1Name),
+					State:    aws.String("available"),
+				},
+				{ // unused
+					VolumeId: aws.String("vol2"),
+					State:    aws.String("in-use"),
+				},
+			},
+		}, nil).Once()
+
+	client := EC2{Client: m}
+	unusedVolumes, err := client.GetUnusedEBSVolumes(context.Background())
+
+	assert.Equal(1, len(unusedVolumes))
+	assert.Equal(vol1Name, unusedVolumes[0].R.ID())
 	assert.Nil(err)
 }
