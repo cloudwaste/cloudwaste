@@ -2,6 +2,15 @@ package util
 
 import "github.com/aws/aws-sdk-go/aws/endpoints"
 
+type AWSResource interface {
+	Type() string
+	ID() string
+}
+
+type AWSResourceObject struct {
+	R AWSResource
+}
+
 type Price struct {
 	Unit string
 	Rate string

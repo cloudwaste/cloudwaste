@@ -9,12 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 
 	ec2Waste "github.com/timmyers/cloudwaste/pkg/aws/ec2"
+	"github.com/timmyers/cloudwaste/pkg/aws/util"
 )
-
-type AWSResource interface {
-	Type() string
-	ID() string
-}
 
 func AnalyzeWaste() {
 	sess := session.Must(session.NewSession())
@@ -23,22 +19,23 @@ func AnalyzeWaste() {
 		Client: ec2.New(sess, aws.NewConfig().WithRegion("us-east-1")),
 	}
 
-	var unusedResources []AWSResource
+	var unusedResources []util.AWSResourceObject
+
+	// Run all the checks
 	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.TODO())
 	if err == nil {
-		for _, address := range unusedAddresses {
-			unusedResources = append(unusedResources, address)
-		}
+		unusedResources = append(unusedResources, unusedAddresses...)
 	}
-
 	unusedGateways, err := client.GetUnusedNATGateways(context.TODO())
-	if err != nil {
-		for _, gateway := range unusedGateways {
-			unusedResources = append(unusedResources, gateway)
-		}
+	if err == nil {
+		unusedResources = append(unusedResources, unusedGateways...)
+	}
+	unusedVolumes, err := client.GetUnusedEBSVolumes(context.TODO())
+	if err == nil {
+		unusedResources = append(unusedResources, unusedVolumes...)
 	}
 
 	for _, r := range unusedResources {
-		fmt.Printf("%s - %s\n", r.Type(), r.ID())
+		fmt.Printf("%s - %s\n", r.R.Type(), r.R.ID())
 	}
 }
