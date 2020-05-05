@@ -67,7 +67,7 @@ func TestGetUnusedElasticIPAddresses(t *testing.T) {
 	client := EC2{Client: m}
 	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.Background())
 	assert.Equal(1, len(unusedAddresses))
-	assert.Equal(alloc2, unusedAddresses[0].ID())
+	assert.Equal(alloc2, unusedAddresses[0].R.ID())
 	assert.Nil(err)
 
 	m.On("DescribeAddressesWithContext", mock.Anything, mock.Anything, mock.Anything).
