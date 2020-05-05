@@ -9,6 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
+	"github.com/aws/aws-sdk-go/service/pricing"
+	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -16,6 +18,12 @@ import (
 type mockedEC2 struct {
 	mock.Mock
 	ec2iface.EC2API
+}
+
+type mockedPricing struct {
+	mock.Mock
+	pricingiface.PricingAPI
+	aws.Config
 }
 
 func (m *mockedEC2) DescribeAddressesWithContext(ctx context.Context, input *ec2.DescribeAddressesInput, options ...request.Option) (*ec2.DescribeAddressesOutput, error) {
@@ -42,6 +50,12 @@ func (m *mockedEC2) DescribeVolumesPagesWithContext(ctx context.Context, input *
 
 	fn(args.Get(0).(*ec2.DescribeVolumesOutput), true)
 	return args.Error(1)
+}
+
+func (m *mockedPricing) GetProductsWithContext(ctx context.Context, input *pricing.GetProductsInput, options ...request.Option) (*pricing.GetProductsOutput, error) {
+	args := m.Called(ctx, input, options)
+
+	return args.Get(0).(*pricing.GetProductsOutput), args.Error(1)
 }
 
 func TestGetUnusedElasticIPAddresses(t *testing.T) {
@@ -149,5 +163,40 @@ func TestGetUnusedVolumes(t *testing.T) {
 
 	assert.Equal(1, len(unusedVolumes))
 	assert.Equal(vol1Name, unusedVolumes[0].R.ID())
+	assert.Nil(err)
+}
+
+func TestGetUnusedElasticIPAddressPrice(t *testing.T) {
+	assert := assert.New(t)
+	m := new(mockedPricing)
+
+	m.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
+		Return(&pricing.GetProductsOutput{
+			PriceList: []aws.JSONValue{
+				{
+					"terms": map[string]interface{}{
+						"OnDemand": map[string]interface{}{
+							"1": map[string]interface{}{
+								"priceDimensions": map[string]interface{}{
+									"1": map[string]interface{}{
+										"unit":       "Hrs",
+										"beginRange": "1",
+										"pricePerUnit": map[string]interface{}{
+											"USD": "0.0050000000",
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}, nil).Once()
+
+	client := Pricing{Client: m}
+	pricing, err := client.GetUnusedElasticIPAddressPrice(context.Background(), "us-east-1")
+
+	assert.Equal("0.0050000000", pricing.Rate)
+	assert.Equal("Hrs", pricing.Unit)
 	assert.Nil(err)
 }

@@ -5,10 +5,10 @@ import (
 	"errors"
 
 	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/pricing"
+	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 
 	util "github.com/timmyers/cloudwaste/pkg/aws/util"
 )
@@ -21,6 +21,10 @@ var (
 
 type EC2 struct {
 	Client ec2iface.EC2API
+}
+
+type Pricing struct {
+	Client pricingiface.PricingAPI
 }
 
 type ElasticIPAddress struct {
@@ -126,11 +130,10 @@ func (client *EC2) GetUnusedEBSVolumes(ctx context.Context) ([]util.AWSResourceO
 	return unusedVolumes, nil
 }
 
-func GetUnusedElasticIPAddressPrice(session *session.Session) (*util.Price, error) {
-	regionName := util.RegionLongNames[*session.Config.Region]
+func (client *Pricing) GetUnusedElasticIPAddressPrice(ctx context.Context, region string) (*util.Price, error) {
+	regionName := util.RegionLongNames[region]
 
-	client := pricing.New(session)
-	resp, err := client.GetProductsWithContext(context.TODO(), &pricing.GetProductsInput{
+	resp, err := client.Client.GetProductsWithContext(ctx, &pricing.GetProductsInput{
 		ServiceCode: aws.String(serviceCode),
 		Filters: []*pricing.Filter{
 			{
