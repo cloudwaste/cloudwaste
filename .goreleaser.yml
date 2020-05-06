@@ -1,0 +1,20 @@
+env:
+  - CGO_ENABLED=0
+archives:
+  - replacements:
+      darwin: mac
+      linux: linux
+      windows: win64
+    format_overrides:
+      - goos: windows
+        format: zip
+builds:
+  - goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+    main: ./cmd/main.go
+    binary: cloudwaste
+    id: "build-cloudwaste"
