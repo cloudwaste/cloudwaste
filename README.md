@@ -9,4 +9,19 @@
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=timmyers/cloudwaste)](https://dependabot.com)
 
 # Getting started
-`go run main.go run`
+```
+⇒  go run cmd/cloudwaste.go
+Cloudwaste finds wasted resources in your cloud
+
+Usage:
+  cloudwaste [command]
+
+Available Commands:
+  help        Help about any command
+  scan        Scan your cloud accounts for unused resources
+
+Flags:
+  -h, --help   help for cloudwaste
+
+Use "cloudwaste [command] --help" for more information about a command.
+```
