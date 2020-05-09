@@ -3,6 +3,7 @@ package ec2
 import (
 	"context"
 	"errors"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -19,12 +20,9 @@ var (
 	couldntParseError       = errors.New("Couldn't parse price code")
 )
 
-type EC2 struct {
-	Client ec2iface.EC2API
-}
-
-type Pricing struct {
-	Client pricingiface.PricingAPI
+type Client struct {
+	EC2     ec2iface.EC2API
+	Pricing pricingiface.PricingAPI
 }
 
 type ElasticIPAddress struct {
@@ -33,10 +31,6 @@ type ElasticIPAddress struct {
 
 type NatGateway struct {
 	r *ec2.NatGateway
-}
-
-type EBSVolume struct {
-	r *ec2.Volume
 }
 
 func (a ElasticIPAddress) Type() string {
@@ -55,16 +49,8 @@ func (r NatGateway) ID() string {
 	return aws.StringValue(r.r.NatGatewayId)
 }
 
-func (r EBSVolume) Type() string {
-	return "EBS Volume"
-}
-
-func (r EBSVolume) ID() string {
-	return aws.StringValue(r.r.VolumeId)
-}
-
-func (client *EC2) GetUnusedElasticIPAddresses(ctx context.Context) ([]util.AWSResourceObject, error) {
-	resp, err := client.Client.DescribeAddressesWithContext(ctx, &ec2.DescribeAddressesInput{})
+func (client *Client) GetUnusedElasticIPAddresses(ctx context.Context) ([]util.AWSResourceObject, error) {
+	resp, err := client.EC2.DescribeAddressesWithContext(ctx, &ec2.DescribeAddressesInput{})
 
 	if err != nil {
 		return nil, err
@@ -80,13 +66,13 @@ func (client *EC2) GetUnusedElasticIPAddresses(ctx context.Context) ([]util.AWSR
 	return unusedAddresses, nil
 }
 
-func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]util.AWSResourceObject, error) {
+func (client *Client) GetUnusedNATGateways(ctx context.Context) ([]util.AWSResourceObject, error) {
 	var unusedGateways []util.AWSResourceObject
 
-	err := client.Client.DescribeNatGatewaysPagesWithContext(ctx, &ec2.DescribeNatGatewaysInput{},
+	err := client.EC2.DescribeNatGatewaysPagesWithContext(ctx, &ec2.DescribeNatGatewaysInput{},
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
 			for _, gateway := range page.NatGateways {
-				resp, _ := client.Client.DescribeRouteTablesWithContext(ctx, &ec2.DescribeRouteTablesInput{
+				resp, _ := client.EC2.DescribeRouteTablesWithContext(ctx, &ec2.DescribeRouteTablesInput{
 					Filters: []*ec2.Filter{
 						{
 							Name:   aws.String("route.nat-gateway-id"),
@@ -110,30 +96,10 @@ func (client *EC2) GetUnusedNATGateways(ctx context.Context) ([]util.AWSResource
 	return unusedGateways, nil
 }
 
-func (client *EC2) GetUnusedEBSVolumes(ctx context.Context) ([]util.AWSResourceObject, error) {
-	var unusedVolumes []util.AWSResourceObject
-
-	err := client.Client.DescribeVolumesPagesWithContext(ctx, &ec2.DescribeVolumesInput{},
-		func(page *ec2.DescribeVolumesOutput, lastPage bool) bool {
-			for _, volume := range page.Volumes {
-				if *volume.State == "available" {
-					unusedVolumes = append(unusedVolumes, util.AWSResourceObject{R: &EBSVolume{volume}})
-				}
-			}
-			return true
-		})
-
-	if err != nil {
-		return nil, err
-	}
-
-	return unusedVolumes, nil
-}
-
-func (client *Pricing) GetUnusedElasticIPAddressPrice(ctx context.Context, region string) (*util.Price, error) {
+func (client *Client) GetUnusedElasticIPAddressPrice(ctx context.Context, region string) (*util.Price, error) {
 	regionName := util.RegionLongNames[region]
 
-	resp, err := client.Client.GetProductsWithContext(ctx, &pricing.GetProductsInput{
+	resp, err := client.Pricing.GetProductsWithContext(ctx, &pricing.GetProductsInput{
 		ServiceCode: aws.String(serviceCode),
 		Filters: []*pricing.Filter{
 			{
@@ -204,9 +170,14 @@ func (client *Pricing) GetUnusedElasticIPAddressPrice(ctx context.Context, regio
 					return nil, couldntParseError
 				}
 
+				rate, err := strconv.ParseFloat(usd, 64)
+				if err != nil {
+					return nil, err
+				}
+
 				return &util.Price{
 					Unit: unit,
-					Rate: usd,
+					Rate: rate,
 				}, nil
 			}
 		}

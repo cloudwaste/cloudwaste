@@ -6,9 +6,10 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
+	"github.com/aws/aws-sdk-go/service/pricing"
 
 	dynamoWaste "github.com/timmyers/cloudwaste/pkg/aws/dynamodb"
 	ec2Waste "github.com/timmyers/cloudwaste/pkg/aws/ec2"
@@ -18,26 +19,30 @@ import (
 func AnalyzeWaste() {
 	sess := session.Must(session.NewSession())
 
-	client := &ec2Waste.EC2{
-		Client: ec2.New(sess, aws.NewConfig().WithRegion("us-east-1")),
+	region := "us-east-1"
+
+	ec2Client := &ec2Waste.Client{
+		EC2:     ec2.New(sess, aws.NewConfig().WithRegion(region)),
+		Pricing: pricing.New(sess, aws.NewConfig().WithRegion(region)),
 	}
-	dynamoClient := &dynamoWaste.DynamoDB{
-		DynamoDBClient: dynamodb.New(sess, aws.NewConfig().WithRegion("us-east-1")),
-		CloudwatchClient: cloudwatch.New(sess, aws.NewConfig().WithRegion("us-east-1")),
+
+	dynamoClient := &dynamoWaste.Client{
+		DynamoDB:   dynamodb.New(sess, aws.NewConfig().WithRegion(region)),
+		Cloudwatch: cloudwatch.New(sess, aws.NewConfig().WithRegion(region)),
 	}
 
 	var unusedResources []util.AWSResourceObject
 
 	// Run all the checks
-	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.TODO())
+	unusedAddresses, err := ec2Client.GetUnusedElasticIPAddresses(context.TODO())
 	if err == nil {
 		unusedResources = append(unusedResources, unusedAddresses...)
 	}
-	unusedGateways, err := client.GetUnusedNATGateways(context.TODO())
+	unusedGateways, err := ec2Client.GetUnusedNATGateways(context.TODO())
 	if err == nil {
 		unusedResources = append(unusedResources, unusedGateways...)
 	}
-	unusedVolumes, err := client.GetUnusedEBSVolumes(context.TODO())
+	unusedVolumes, err := ec2Client.GetUnusedEBSVolumes(context.TODO())
 	if err == nil {
 		unusedResources = append(unusedResources, unusedVolumes...)
 	}
