@@ -1,0 +1,4 @@
+buttons:
+  - title: Release cloudwaste
+    action: "release"
+    description: Release a new version of cloudwaste
