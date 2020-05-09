@@ -48,14 +48,19 @@ func (m *mockedEC2) DescribeRouteTablesWithContext(ctx context.Context, input *e
 func (m *mockedEC2) DescribeVolumesPagesWithContext(ctx context.Context, input *ec2.DescribeVolumesInput, fn func(*ec2.DescribeVolumesOutput, bool) bool, opts ...request.Option) error {
 	args := m.Called(ctx, input, fn)
 
-	fn(args.Get(0).(*ec2.DescribeVolumesOutput), true)
+	if args.Error(1) == nil {
+		fn(args.Get(0).(*ec2.DescribeVolumesOutput), true)
+	}
 	return args.Error(1)
 }
 
 func (m *mockedPricing) GetProductsWithContext(ctx context.Context, input *pricing.GetProductsInput, options ...request.Option) (*pricing.GetProductsOutput, error) {
 	args := m.Called(ctx, input, options)
 
-	return args.Get(0).(*pricing.GetProductsOutput), args.Error(1)
+	if args.Error(1) == nil {
+		return args.Get(0).(*pricing.GetProductsOutput), nil
+	}
+	return nil, args.Error(1)
 }
 
 func TestGetUnusedElasticIPAddresses(t *testing.T) {
@@ -78,7 +83,7 @@ func TestGetUnusedElasticIPAddresses(t *testing.T) {
 			},
 		}, nil).Once()
 
-	client := EC2{Client: m}
+	client := Client{EC2: m}
 	unusedAddresses, err := client.GetUnusedElasticIPAddresses(context.Background())
 	assert.Equal(1, len(unusedAddresses))
 	assert.Equal(alloc2, unusedAddresses[0].R.ID())
@@ -110,7 +115,7 @@ func TestGetUnusedNATGateways(t *testing.T) {
 			RouteTables: []*ec2.RouteTable{},
 		}, nil).Once()
 
-	client := EC2{Client: m}
+	client := Client{EC2: m}
 	unusedNatGateways, err := client.GetUnusedNATGateways(context.Background())
 	assert.Equal(1, len(unusedNatGateways))
 	assert.Nil(err)
@@ -135,34 +140,6 @@ func TestGetUnusedNATGateways(t *testing.T) {
 
 	unusedNatGateways, err = client.GetUnusedNATGateways(context.Background())
 	assert.Equal(0, len(unusedNatGateways))
-	assert.Nil(err)
-}
-
-func TestGetUnusedVolumes(t *testing.T) {
-	assert := assert.New(t)
-	m := new(mockedEC2)
-
-	const vol1Name = "vol1"
-
-	m.On("DescribeVolumesPagesWithContext", mock.Anything, mock.Anything, mock.Anything).
-		Return(&ec2.DescribeVolumesOutput{
-			Volumes: []*ec2.Volume{
-				{ // used
-					VolumeId: aws.String(vol1Name),
-					State:    aws.String("available"),
-				},
-				{ // unused
-					VolumeId: aws.String("vol2"),
-					State:    aws.String("in-use"),
-				},
-			},
-		}, nil).Once()
-
-	client := EC2{Client: m}
-	unusedVolumes, err := client.GetUnusedEBSVolumes(context.Background())
-
-	assert.Equal(1, len(unusedVolumes))
-	assert.Equal(vol1Name, unusedVolumes[0].R.ID())
 	assert.Nil(err)
 }
 
@@ -193,10 +170,10 @@ func TestGetUnusedElasticIPAddressPrice(t *testing.T) {
 			},
 		}, nil).Once()
 
-	client := Pricing{Client: m}
+	client := Client{Pricing: m}
 	pricing, err := client.GetUnusedElasticIPAddressPrice(context.Background(), "us-east-1")
 
-	assert.Equal("0.0050000000", pricing.Rate)
+	assert.Equal(float64(.005), pricing.Rate)
 	assert.Equal("Hrs", pricing.Unit)
 	assert.Nil(err)
 }

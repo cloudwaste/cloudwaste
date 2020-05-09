@@ -133,7 +133,7 @@ func TestGetUnusedDynamoDBTables(t *testing.T) {
 	mc.On("GetMetricDataWithContext", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil)
 
-	client := DynamoDB{DynamoDBClient: md, CloudwatchClient: mc}
+	client := Client{DynamoDB: md, Cloudwatch: mc}
 	unusedTables, err := client.GetUnusedDynamoDBTables(context.Background())
 
 	assert.Equal(3, len(unusedTables))
@@ -157,7 +157,7 @@ func TestGetUnusedDynamoDBTables(t *testing.T) {
 	md.On("ListTablesPagesWithContext", mock.Anything, mock.Anything, mock.Anything).
 		Return(nil, errors.New("failed"))
 
-	client = DynamoDB{DynamoDBClient: md, CloudwatchClient: mc}
+	client = Client{DynamoDB: md, Cloudwatch: mc}
 	unusedTables, err = client.GetUnusedDynamoDBTables(context.Background())
 	assert.Nil(unusedTables)
 	assert.NotNil(err)

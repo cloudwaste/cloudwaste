@@ -17,9 +17,9 @@ const (
 	tableType = "DynamoDB Table"
 )
 
-type DynamoDB struct {
-	DynamoDBClient   dynamodbiface.DynamoDBAPI
-	CloudwatchClient cloudwatchiface.CloudWatchAPI
+type Client struct {
+	DynamoDB   dynamodbiface.DynamoDBAPI
+	Cloudwatch cloudwatchiface.CloudWatchAPI
 }
 
 type DynamoDBTable struct {
@@ -34,13 +34,13 @@ func (a DynamoDBTable) ID() string {
 	return aws.StringValue(a.r.TableName)
 }
 
-func (client *DynamoDB) GetUnusedDynamoDBTables(ctx context.Context) ([]util.AWSResourceObject, error) {
+func (client *Client) GetUnusedDynamoDBTables(ctx context.Context) ([]util.AWSResourceObject, error) {
 	var unusedTables []util.AWSResourceObject
 
-	err := client.DynamoDBClient.ListTablesPagesWithContext(ctx, &dynamodb.ListTablesInput{},
+	err := client.DynamoDB.ListTablesPagesWithContext(ctx, &dynamodb.ListTablesInput{},
 		func(page *dynamodb.ListTablesOutput, lastPage bool) bool {
 			for _, tableName := range page.TableNames {
-				tableOutput, err := client.DynamoDBClient.DescribeTableWithContext(ctx, &dynamodb.DescribeTableInput{
+				tableOutput, err := client.DynamoDB.DescribeTableWithContext(ctx, &dynamodb.DescribeTableInput{
 					TableName: tableName,
 				})
 				// TODO: do somethign with errors in individual items
@@ -57,7 +57,7 @@ func (client *DynamoDB) GetUnusedDynamoDBTables(ctx context.Context) ([]util.AWS
 				startTime := time.Now().Add(-24 * 14 * time.Hour)
 				endTime := time.Now()
 
-				tableMetrics, err := client.CloudwatchClient.GetMetricDataWithContext(ctx, &cloudwatch.GetMetricDataInput{
+				tableMetrics, err := client.Cloudwatch.GetMetricDataWithContext(ctx, &cloudwatch.GetMetricDataInput{
 					StartTime: &startTime,
 					EndTime:   &endTime,
 					MetricDataQueries: []*cloudwatch.MetricDataQuery{
