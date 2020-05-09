@@ -3,7 +3,7 @@ module github.com/timmyers/cloudwaste
 go 1.14
 
 require (
-	github.com/aws/aws-sdk-go v1.30.7
+	github.com/aws/aws-sdk-go v1.30.24
 	github.com/kr/pretty v0.1.0 // indirect
 	github.com/spf13/cobra v0.0.7
 	github.com/stretchr/objx v0.1.1 // indirect
