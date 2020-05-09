@@ -15,6 +15,6 @@ builds:
       - windows
     goarch:
       - amd64
-    main: ./cmd/main.go
+    main: ./main.go
     binary: cloudwaste
     id: "build-cloudwaste"
