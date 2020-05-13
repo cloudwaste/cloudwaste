@@ -28,23 +28,15 @@ func (suite *EBSTestSuite) SetupTest() {
 	suite.client = Client{EC2: suite.m, Pricing: suite.p}
 }
 
-func (suite *EBSTestSuite) TestAnalyzeEBSVolumeWaste() {
-	assert := assert.New(suite.T())
-
-	const vol1Name = "vol1"
-
-	rate := "0.1000000000"
-	expectedUnit := "GB-Mo"
-	var unusedVolumeSize int64 = 500 // GB
-	var expectedRate float64 = float64(.1) * float64(unusedVolumeSize)
-
-	suite.p.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
+func (suite *EBSTestSuite) MockPricingGood(unit string, rate string) *mock.Call {
+	return suite.p.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
 		Return(&pricing.GetProductsOutput{
 			PriceList: []aws.JSONValue{
 				{
 					"product": map[string]interface{}{
 						"attributes": map[string]interface{}{
 							"volumeApiName": "gp2",
+							"usagetype":     "",
 						},
 					},
 					"terms": map[string]interface{}{
@@ -52,7 +44,10 @@ func (suite *EBSTestSuite) TestAnalyzeEBSVolumeWaste() {
 							"1": map[string]interface{}{
 								"priceDimensions": map[string]interface{}{
 									"1": map[string]interface{}{
-										"unit": expectedUnit,
+										"unit":        unit,
+										"beginRange":  "0",
+										"endRange":    "Inf",
+										"description": "",
 										"pricePerUnit": map[string]interface{}{
 											"USD": rate,
 										},
@@ -63,7 +58,26 @@ func (suite *EBSTestSuite) TestAnalyzeEBSVolumeWaste() {
 					},
 				},
 			},
-		}, nil).Once()
+		}, nil)
+}
+
+func (suite *EBSTestSuite) MockPricingError() *mock.Call {
+	return suite.p.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
+		Return(nil, errors.New("error"))
+}
+
+func (suite *EBSTestSuite) TestAnalyzeEBSVolumeWaste() {
+	assert := assert.New(suite.T())
+
+	const vol1Name = "vol1"
+
+	rate := "0.1000000000"
+	pricingUnit := "GB-Mo"
+	expectedUnit := "Mo"
+	var unusedVolumeSize int64 = 500 // GB
+	var expectedRate float64 = float64(.1) * float64(unusedVolumeSize)
+
+	suite.MockPricingGood(pricingUnit, rate).Once()
 
 	suite.m.On("DescribeVolumesPagesWithContext", mock.Anything, mock.Anything, mock.Anything).
 		Return(&ec2.DescribeVolumesOutput{
@@ -91,8 +105,7 @@ func (suite *EBSTestSuite) TestAnalyzeEBSVolumeWaste() {
 	assert.Equal(expectedRate, wastedVolumes[0].Price.Rate)
 
 	// Test error cases
-	suite.p.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
-		Return(nil, errors.New("error")).Once()
+	suite.MockPricingError().Once()
 
 	wastedVolumes, err = suite.client.AnalyzeEBSVolumeWaste(context.TODO(), suite.region)
 	assert.Nil(wastedVolumes)
@@ -137,47 +150,22 @@ func (suite *EBSTestSuite) TestGetUnusedEBSVolumes() {
 func (suite *EBSTestSuite) TestGetEBSVolumePricing() {
 	assert := assert.New(suite.T())
 
-	expectedRate := "0.0100000000"
 	expectedUnit := "GB-Mo"
+	rate := "0.0100000000"
+	expectedRate := float64(0.01)
 
-	suite.p.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
-		Return(&pricing.GetProductsOutput{
-			PriceList: []aws.JSONValue{
-				{
-					"product": map[string]interface{}{
-						"attributes": map[string]interface{}{
-							"volumeApiName": "gp2",
-						},
-					},
-					"terms": map[string]interface{}{
-						"OnDemand": map[string]interface{}{
-							"1": map[string]interface{}{
-								"priceDimensions": map[string]interface{}{
-									"1": map[string]interface{}{
-										"unit": expectedUnit,
-										"pricePerUnit": map[string]interface{}{
-											"USD": expectedRate,
-										},
-									},
-								},
-							},
-						},
-					},
-				},
-			},
-		}, nil).Once()
+	suite.MockPricingGood(expectedUnit, rate).Once()
 
 	pricingRet, err := suite.client.GetEBSVolumePricing(context.Background(), suite.region)
 
 	gp2Pricing := pricingRet[EBSVolumeType("gp2")]
 	assert.NotNil(gp2Pricing)
-	assert.Equal(expectedRate, gp2Pricing.OnDemand.Rate)
-	assert.Equal(expectedUnit, gp2Pricing.OnDemand.Unit)
+	assert.Equal(expectedRate, gp2Pricing.OnDemand.Dimensions[0].Rate)
+	assert.Equal(expectedUnit, gp2Pricing.OnDemand.Dimensions[0].Unit)
 	assert.Nil(err)
 
 	// Test error cases
-	suite.p.On("GetProductsWithContext", mock.Anything, mock.Anything, mock.Anything).
-		Return(nil, errors.New("error")).Once()
+	suite.MockPricingError().Once()
 
 	pricingRet, err = suite.client.GetEBSVolumePricing(context.Background(), suite.region)
 	assert.Nil(pricingRet)

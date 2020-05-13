@@ -80,7 +80,7 @@ func (client *Client) GetUnusedDynamoDBTables(ctx context.Context) ([]util.AWSRe
 						},
 					},
 				})
-				// TODO: do somethign with errors in individual items
+				// TODO: do something with errors in individual items
 				if err != nil {
 					continue
 				}

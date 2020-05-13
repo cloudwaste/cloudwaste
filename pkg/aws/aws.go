@@ -6,12 +6,9 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
 
-	dynamoWaste "github.com/timmyers/cloudwaste/pkg/aws/dynamodb"
 	ec2Waste "github.com/timmyers/cloudwaste/pkg/aws/ec2"
 	"github.com/timmyers/cloudwaste/pkg/aws/util"
 )
@@ -26,32 +23,29 @@ func AnalyzeWaste() {
 		Pricing: pricing.New(sess, aws.NewConfig().WithRegion(region)),
 	}
 
-	dynamoClient := &dynamoWaste.Client{
-		DynamoDB:   dynamodb.New(sess, aws.NewConfig().WithRegion(region)),
-		Cloudwatch: cloudwatch.New(sess, aws.NewConfig().WithRegion(region)),
-	}
-
-	var unusedResources []util.AWSResourceObject
+	var wastedResources []util.AWSWastedResource
 
 	// Run all the checks
-	unusedAddresses, err := ec2Client.GetUnusedElasticIPAddresses(context.TODO())
+	wastedNATGateways, err := ec2Client.AnalyzeNATGatewayWaste(context.TODO(), region)
 	if err == nil {
-		unusedResources = append(unusedResources, unusedAddresses...)
+		wastedResources = append(wastedResources, wastedNATGateways...)
+	} else {
+		fmt.Println(err)
 	}
-	unusedGateways, err := ec2Client.GetUnusedNATGateways(context.TODO())
+	wastedEBSVolumes, err := ec2Client.AnalyzeEBSVolumeWaste(context.TODO(), region)
 	if err == nil {
-		unusedResources = append(unusedResources, unusedGateways...)
+		wastedResources = append(wastedResources, wastedEBSVolumes...)
+	} else {
+		fmt.Println(err)
 	}
-	unusedVolumes, err := ec2Client.GetUnusedEBSVolumes(context.TODO())
+	wastedElasticIPAddresses, err := ec2Client.AnalyzeElasticIPAddressWaste(context.TODO(), region)
 	if err == nil {
-		unusedResources = append(unusedResources, unusedVolumes...)
-	}
-	unusedDynamoDBTables, err := dynamoClient.GetUnusedDynamoDBTables((context.TODO()))
-	if err == nil {
-		unusedResources = append(unusedResources, unusedDynamoDBTables...)
+		wastedResources = append(wastedResources, wastedElasticIPAddresses...)
+	} else {
+		fmt.Println(err)
 	}
 
-	for _, r := range unusedResources {
-		fmt.Printf("%s - %s\n", r.R.Type(), r.R.ID())
+	for _, r := range wastedResources {
+		fmt.Printf("%s - %s: $%f/%s\n", r.Resource.R.Type(), r.Resource.R.ID(), r.Price.Rate, r.Price.Unit)
 	}
 }
