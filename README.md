@@ -8,9 +8,16 @@
 [![GitHub release date](https://img.shields.io/github/release-date/timmyers/cloudwaste.svg)](https://github.com/timmyers/cloudwaste/releases)
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=timmyers/cloudwaste)](https://dependabot.com)
 
+# Installation
+`brew install cloudwaste/cloudwaste/cloudwaste`  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
+Download binary from [latest release](https://github.com/timmyers/cloudwaste/releases/latest).  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
+Clone and build from source.
+
 # Getting started
 ```
-⇒  go run cmd/cloudwaste.go
+⇒  cloudwaste
 Cloudwaste finds wasted resources in your cloud
 
 Usage:
