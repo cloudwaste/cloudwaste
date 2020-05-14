@@ -9,8 +9,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
 
-	ec2Waste "github.com/timmyers/cloudwaste/pkg/aws/ec2"
-	"github.com/timmyers/cloudwaste/pkg/aws/util"
+	ec2Waste "github.com/cloudwaste/cloudwaste/pkg/aws/ec2"
+	"github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
 
 func AnalyzeWaste() {

@@ -1,4 +1,4 @@
-module github.com/timmyers/cloudwaste
+module github.com/cloudwaste/cloudwaste
 
 go 1.14
 

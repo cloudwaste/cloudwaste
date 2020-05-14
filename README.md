@@ -1,12 +1,19 @@
 ![cloud waste](/docs/cloudwaste.svg)
 > Find pure waste in your cloud accounts
 
-[![Actions Panel](https://img.shields.io/badge/actionspanel-enabled-brightgreen)](https://www.actionspanel.app/app/timmyers/cloudwaste)
-[![codecov](https://codecov.io/gh/timmyers/cloudwaste/branch/master/graph/badge.svg)](https://codecov.io/gh/timmyers/cloudwaste)
-[![Test](https://github.com/timmyers/cloudwaste/workflows/Test/badge.svg)](https://github.com/timmyers/cloudwaste/actions?query=workflow%3ATest)
-[![release](https://img.shields.io/github/release/timmyers/cloudwaste.svg)](https://github.com/timmyers/cloudwaste/releases/latest)
-[![GitHub release date](https://img.shields.io/github/release-date/timmyers/cloudwaste.svg)](https://github.com/timmyers/cloudwaste/releases)
-[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=timmyers/cloudwaste)](https://dependabot.com)
+[![Actions Panel](https://img.shields.io/badge/actionspanel-enabled-brightgreen)](https://www.actionspanel.app/app/cloudwaste/cloudwaste)
+[![codecov](https://codecov.io/gh/cloudwaste/cloudwaste/branch/master/graph/badge.svg)](https://codecov.io/gh/cloudwaste/cloudwaste)
+[![Test](https://github.com/cloudwaste/cloudwaste/workflows/Test/badge.svg)](https://github.com/cloudwaste/cloudwaste/actions?query=workflow%3ATest)
+[![release](https://img.shields.io/github/release/cloudwaste/cloudwaste.svg)](https://github.com/cloudwaste/cloudwaste/releases/latest)
+[![GitHub release date](https://img.shields.io/github/release-date/cloudwaste/cloudwaste.svg)](https://github.com/cloudwaste/cloudwaste/releases)
+[![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=cloudwaste/cloudwaste)](https://dependabot.com)
+
+# Installation
+`brew install cloudwaste/cloudwaste/cloudwaste`  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
+Download binary from [latest release](https://github.com/cloudwaste/cloudwaste/releases/latest).  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
+Clone and build from source.
 
 # Installation
 `brew install cloudwaste/cloudwaste/cloudwaste`  

@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 
-	util "github.com/timmyers/cloudwaste/pkg/aws/util"
+	util "github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
 
 const (

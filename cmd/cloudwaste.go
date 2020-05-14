@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/cloudwaste/cloudwaste/cmd/scan"
 	"github.com/spf13/cobra"
-	"github.com/timmyers/cloudwaste/cmd/scan"
 )
 
 func main() {

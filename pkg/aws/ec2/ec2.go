@@ -10,7 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
 
-	util "github.com/timmyers/cloudwaste/pkg/aws/util"
+	util "github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
 
 var (

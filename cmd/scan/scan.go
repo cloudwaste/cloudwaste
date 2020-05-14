@@ -1,8 +1,8 @@
 package scan
 
 import (
+	"github.com/cloudwaste/cloudwaste/pkg/aws"
 	"github.com/spf13/cobra"
-	"github.com/timmyers/cloudwaste/pkg/aws"
 )
 
 // Cmd runs the scan command
