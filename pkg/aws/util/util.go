@@ -1,10 +1,15 @@
 package util
 
 import (
-	"errors"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/endpoints"
+	"github.com/pkg/errors"
+)
+
+var (
+	PricingError = errors.New("Pricing error")
 )
 
 type AWSResource interface {
@@ -26,11 +31,19 @@ type AWSWastedResource struct {
 	Price    Price
 }
 
+type AWSPriceItemDimension struct {
+	BeginRange  string
+	EndRange    string
+	Unit        string
+	Rate        float64
+	Description string
+}
+
 type AWSPriceItem struct {
 	Attributes map[string]interface{}
+	UsageType  string
 	OnDemand   struct {
-		Unit string
-		Rate string
+		Dimensions []AWSPriceItemDimension
 	}
 }
 
@@ -44,7 +57,12 @@ func ParsePriceItem(priceItem aws.JSONValue) (priceItemRet *AWSPriceItem, err er
 
 	if product, ok := priceItem["product"].(map[string]interface{}); ok {
 		if attributes, ok := product["attributes"].(map[string]interface{}); ok {
+			usageType, ok := attributes["usagetype"].(string)
+			if !ok {
+				return nil, errors.New("Could not parse Attributes")
+			}
 			priceItemRet.Attributes = attributes
+			priceItemRet.UsageType = usageType
 		} else {
 			return nil, errors.New("Could not parse attributes")
 		}
@@ -59,16 +77,33 @@ func ParsePriceItem(priceItem aws.JSONValue) (priceItemRet *AWSPriceItem, err er
 							if priceDimensionsValue, ok := v2.(map[string]interface{}); ok {
 								pricePerUnit, ok1 := priceDimensionsValue["pricePerUnit"].(map[string]interface{})
 								unit, ok2 := priceDimensionsValue["unit"].(string)
+								beginRange, ok3 := priceDimensionsValue["beginRange"].(string)
+								endRange, ok4 := priceDimensionsValue["endRange"].(string)
+								description, ok5 := priceDimensionsValue["description"].(string)
 
-								if ok1 && ok2 {
+								if ok1 && ok2 && ok3 && ok4 && ok5 {
 									if usd, ok := pricePerUnit["USD"].(string); ok {
-										priceItemRet.OnDemand.Rate = usd
-										priceItemRet.OnDemand.Unit = unit
-										return
+
+										rate, err := strconv.ParseFloat(usd, 64)
+										if err != nil {
+											return nil, err
+										}
+
+										priceItemRet.OnDemand.Dimensions = append(priceItemRet.OnDemand.Dimensions, AWSPriceItemDimension{
+											BeginRange:  beginRange,
+											EndRange:    endRange,
+											Unit:        unit,
+											Rate:        rate,
+											Description: description,
+										})
 									}
+								} else {
+									return nil, errors.New("Could not parse OnDemand")
 								}
 							}
 						}
+
+						return
 					}
 				}
 			}

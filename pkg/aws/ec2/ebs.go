@@ -2,8 +2,6 @@ package ec2
 
 import (
 	"context"
-	"errors"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -55,28 +53,29 @@ func (client *Client) AnalyzeEBSVolumeWaste(ctx context.Context, region string) 
 	for _, unusedResource := range unusedVolumes {
 		unusedVolume, ok := unusedResource.R.(*EBSVolume)
 		if !ok {
-			return nil, errors.New("Failed to analyze EBS volume waste")
+			return nil, util.PricingError
 		}
 
 		volumeTypePricing, ok := pricing[unusedVolume.VolumeType()]
 		if !ok {
-			return nil, errors.New("Failed to analyze EBS volume waste")
+			return nil, util.PricingError
 		}
 
-		if volumeTypePricing.OnDemand.Unit != "GB-Mo" {
-			return nil, errors.New("Unhandled pricing unit")
+		if len(volumeTypePricing.OnDemand.Dimensions) > 1 {
+			return nil, util.PricingError
 		}
 
-		rate, err := strconv.ParseFloat(volumeTypePricing.OnDemand.Rate, 64)
-		if err != nil {
-			return nil, err
+		dimension := volumeTypePricing.OnDemand.Dimensions[0]
+
+		if dimension.Unit != "GB-Mo" {
+			return nil, util.PricingError
 		}
 
 		wastedResources = append(wastedResources, util.AWSWastedResource{
 			Resource: unusedResource,
 			Price: util.Price{
-				Unit: volumeTypePricing.OnDemand.Unit,
-				Rate: rate * float64(unusedVolume.VolumeSizeinGb()),
+				Unit: "Mo",
+				Rate: dimension.Rate * float64(unusedVolume.VolumeSizeinGb()),
 			},
 		})
 	}

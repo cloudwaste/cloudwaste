@@ -3,7 +3,6 @@ package ec2
 import (
 	"context"
 	"errors"
-	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
@@ -20,6 +19,10 @@ var (
 	couldntParseError       = errors.New("Couldn't parse price code")
 )
 
+const (
+	UsageTypeNatGatewayHours = "NatGateway-Hours"
+)
+
 type Client struct {
 	EC2     ec2iface.EC2API
 	Pricing pricingiface.PricingAPI
@@ -33,6 +36,12 @@ type NatGateway struct {
 	r *ec2.NatGateway
 }
 
+type ElasticIPAddressPricing util.Price
+
+type NATGatewayPricing struct {
+	PerHour *util.Price
+}
+
 func (a ElasticIPAddress) Type() string {
 	return "Elastic IP Address"
 }
@@ -42,11 +51,67 @@ func (a ElasticIPAddress) ID() string {
 }
 
 func (r NatGateway) Type() string {
-	return "Elastic IP Address"
+	return "NAT Gateway"
 }
 
 func (r NatGateway) ID() string {
 	return aws.StringValue(r.r.NatGatewayId)
+}
+
+func (client *Client) AnalyzeElasticIPAddressWaste(ctx context.Context, region string) ([]util.AWSWastedResource, error) {
+	pricing, err := client.GetElasticIPAddressPricing(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	unusedIPAddress, err := client.GetUnusedElasticIPAddresses(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var wastedResources []util.AWSWastedResource
+
+	for _, unusedAddress := range unusedIPAddress {
+		if pricing.Unit != "Hrs" {
+			return nil, errors.New("Unhandled pricing unit")
+		}
+
+		wastedResources = append(wastedResources, util.AWSWastedResource{
+			Resource: unusedAddress,
+			Price: util.Price{
+				Unit: "Hr",
+				Rate: pricing.Rate,
+			},
+		})
+	}
+
+	return wastedResources, nil
+}
+
+func (client *Client) AnalyzeNATGatewayWaste(ctx context.Context, region string) ([]util.AWSWastedResource, error) {
+	pricing, err := client.GetNATGatewayPricing(ctx, region)
+	if err != nil {
+		return nil, err
+	}
+
+	unusedNatGateways, err := client.GetUnusedNATGateways(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var wastedResources []util.AWSWastedResource
+
+	for _, unusedResource := range unusedNatGateways {
+		wastedResources = append(wastedResources, util.AWSWastedResource{
+			Resource: unusedResource,
+			Price: util.Price{
+				Unit: "Hr",
+				Rate: pricing.PerHour.Rate,
+			},
+		})
+	}
+
+	return wastedResources, nil
 }
 
 func (client *Client) GetUnusedElasticIPAddresses(ctx context.Context) ([]util.AWSResourceObject, error) {
@@ -72,6 +137,10 @@ func (client *Client) GetUnusedNATGateways(ctx context.Context) ([]util.AWSResou
 	err := client.EC2.DescribeNatGatewaysPagesWithContext(ctx, &ec2.DescribeNatGatewaysInput{},
 		func(page *ec2.DescribeNatGatewaysOutput, lastPage bool) bool {
 			for _, gateway := range page.NatGateways {
+				if *gateway.State == "deleted" {
+					continue
+				}
+
 				resp, _ := client.EC2.DescribeRouteTablesWithContext(ctx, &ec2.DescribeRouteTablesInput{
 					Filters: []*ec2.Filter{
 						{
@@ -96,7 +165,7 @@ func (client *Client) GetUnusedNATGateways(ctx context.Context) ([]util.AWSResou
 	return unusedGateways, nil
 }
 
-func (client *Client) GetUnusedElasticIPAddressPrice(ctx context.Context, region string) (*util.Price, error) {
+func (client *Client) GetElasticIPAddressPricing(ctx context.Context, region string) (*util.Price, error) {
 	regionName := util.RegionLongNames[region]
 
 	resp, err := client.Pricing.GetProductsWithContext(ctx, &pricing.GetProductsInput{
@@ -127,61 +196,70 @@ func (client *Client) GetUnusedElasticIPAddressPrice(ctx context.Context, region
 		return nil, multiplePriceCodesError
 	}
 
-	priceItem := resp.PriceList[0]
-	terms, ok := priceItem["terms"].(map[string]interface{})
-	if !ok {
-		return nil, couldntParseError
-	}
-	onDemand, ok := terms["OnDemand"].(map[string]interface{})
-	if !ok {
-		return nil, couldntParseError
+	priceItem, err := util.ParsePriceItem(resp.PriceList[0])
+	if err != nil {
+		return nil, err
 	}
 
-	for _, v := range onDemand {
-		onDemandValue, ok := v.(map[string]interface{})
-		if !ok {
-			return nil, couldntParseError
-		}
-
-		priceDimensions, ok := onDemandValue["priceDimensions"].(map[string]interface{})
-		if !ok {
-			return nil, couldntParseError
-		}
-
-		for _, v2 := range priceDimensions {
-			priceDimensionsValue, ok := v2.(map[string]interface{})
-			if !ok {
-				return nil, couldntParseError
-			}
-
-			unit, ok := priceDimensionsValue["unit"].(string)
-			if !ok {
-				return nil, couldntParseError
-			}
-
-			if priceDimensionsValue["beginRange"] == "1" {
-				pricePerUnit, ok := priceDimensionsValue["pricePerUnit"].(map[string]interface{})
-				if !ok {
-					return nil, couldntParseError
-				}
-
-				usd, ok := pricePerUnit["USD"].(string)
-				if !ok {
-					return nil, couldntParseError
-				}
-
-				rate, err := strconv.ParseFloat(usd, 64)
-				if err != nil {
-					return nil, err
-				}
-
-				return &util.Price{
-					Unit: unit,
-					Rate: rate,
-				}, nil
-			}
+	for _, dimension := range priceItem.OnDemand.Dimensions {
+		if dimension.BeginRange == "1" {
+			return &util.Price{
+				Rate: dimension.Rate,
+				Unit: dimension.Unit,
+			}, nil
 		}
 	}
 
-	return nil, nil
+	return nil, couldntParseError
+}
+
+func (client *Client) GetNATGatewayPricing(ctx context.Context, region string) (*NATGatewayPricing, error) {
+	regionName := util.RegionLongNames[region]
+
+	resp, err := client.Pricing.GetProductsWithContext(ctx, &pricing.GetProductsInput{
+		ServiceCode: aws.String(serviceCode),
+		Filters: []*pricing.Filter{
+			{
+				Type:  aws.String("TERM_MATCH"),
+				Field: aws.String("productFamily"),
+				Value: aws.String("NAT Gateway"),
+			},
+			{
+				Type:  aws.String("TERM_MATCH"),
+				Field: aws.String("location"),
+				Value: aws.String(regionName),
+			},
+		},
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	for _, p := range resp.PriceList {
+		priceItem, err := util.ParsePriceItem(p)
+		if err != nil {
+			return nil, err
+		}
+
+		if priceItem.UsageType == UsageTypeNatGatewayHours {
+			if len(priceItem.OnDemand.Dimensions) != 1 {
+				return nil, util.PricingError
+			}
+			dimension := priceItem.OnDemand.Dimensions[0]
+
+			if dimension.Unit != "Hrs" {
+				return nil, util.PricingError
+			}
+
+			return &NATGatewayPricing{
+				PerHour: &util.Price{
+					Unit: "Hrs",
+					Rate: dimension.Rate,
+				},
+			}, nil
+		}
+	}
+
+	return nil, util.PricingError
 }
