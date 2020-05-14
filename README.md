@@ -15,9 +15,16 @@ Download binary from [latest release](https://github.com/cloudwaste/cloudwaste/r
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
 Clone and build from source.
 
+# Installation
+`brew install cloudwaste/cloudwaste/cloudwaste`  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
+Download binary from [latest release](https://github.com/timmyers/cloudwaste/releases/latest).  
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
+Clone and build from source.
+
 # Getting started
 ```
-⇒  go run cmd/cloudwaste.go
+⇒  cloudwaste
 Cloudwaste finds wasted resources in your cloud
 
 Usage:
