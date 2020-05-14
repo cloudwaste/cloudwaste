@@ -6,7 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
-	util "github.com/timmyers/cloudwaste/pkg/aws/util"
+	util "github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
 
 const (
