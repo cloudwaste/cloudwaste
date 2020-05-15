@@ -9,6 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2/ec2iface"
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/aws/aws-sdk-go/service/pricing/pricingiface"
+	"go.uber.org/zap"
 
 	util "github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
@@ -24,6 +25,7 @@ const (
 )
 
 type Client struct {
+	Logger  *zap.SugaredLogger
 	EC2     ec2iface.EC2API
 	Pricing pricingiface.PricingAPI
 }
@@ -90,12 +92,18 @@ func (client *Client) AnalyzeElasticIPAddressWaste(ctx context.Context, region s
 
 func (client *Client) AnalyzeNATGatewayWaste(ctx context.Context, region string) ([]util.AWSWastedResource, error) {
 	pricing, err := client.GetNATGatewayPricing(ctx, region)
+	if err == util.NoResourceFoundError {
+		return []util.AWSWastedResource{}, nil
+	}
+
 	if err != nil {
+		client.Logger.Errorf("couldn't get NAT Gateway Pricing: %v\n", err)
 		return nil, err
 	}
 
 	unusedNatGateways, err := client.GetUnusedNATGateways(ctx)
 	if err != nil {
+		client.Logger.Errorf("couldn't get Unused NAT Gateways: %v\n", err)
 		return nil, err
 	}
 
@@ -233,22 +241,26 @@ func (client *Client) GetNATGatewayPricing(ctx context.Context, region string) (
 	})
 
 	if err != nil {
+		client.Logger.Errorf("couldn't GetProductsWithContext: %v", err)
 		return nil, err
 	}
 
 	for _, p := range resp.PriceList {
 		priceItem, err := util.ParsePriceItem(p)
 		if err != nil {
+			client.Logger.Errorf("couldn't ParsePriceItem: %v", err)
 			return nil, err
 		}
 
 		if priceItem.UsageType == UsageTypeNatGatewayHours {
 			if len(priceItem.OnDemand.Dimensions) != 1 {
+				client.Logger.Error("priceItem.OnDemand.Dimensions was not 1")
 				return nil, util.PricingError
 			}
 			dimension := priceItem.OnDemand.Dimensions[0]
 
 			if dimension.Unit != "Hrs" {
+				client.Logger.Error("dimension.Unit was not Hrs")
 				return nil, util.PricingError
 			}
 
@@ -261,5 +273,5 @@ func (client *Client) GetNATGatewayPricing(ctx context.Context, region string) (
 		}
 	}
 
-	return nil, util.PricingError
+	return nil, util.NoResourceFoundError
 }

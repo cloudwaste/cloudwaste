@@ -8,8 +8,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+const (
+	// FlagRegion is a viper flag for the region to run in
+	FlagRegion = "region"
+)
+
 var (
-	PricingError = errors.New("Pricing error")
+	PricingError         = errors.New("Pricing error")
+	NoResourceFoundError = errors.New("There are no instances of the requested resource")
 )
 
 type AWSResource interface {
@@ -50,6 +56,7 @@ type AWSPriceItem struct {
 var RegionLongNames = map[string]string{
 	endpoints.UsEast1RegionID: "US East (N. Virginia)",
 	endpoints.UsEast2RegionID: "US East (Ohio)",
+	endpoints.UsWest2RegionID: "US West (Oregon)",
 }
 
 func ParsePriceItem(priceItem aws.JSONValue) (priceItemRet *AWSPriceItem, err error) {
