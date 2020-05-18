@@ -2,18 +2,18 @@ package aws
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
+	"go.uber.org/zap"
 
 	ec2Waste "github.com/cloudwaste/cloudwaste/pkg/aws/ec2"
 	"github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
 
-func AnalyzeWaste() {
+func AnalyzeWaste(log *zap.SugaredLogger) {
 	sess := session.Must(session.NewSession())
 
 	region := "us-east-1"
@@ -30,22 +30,22 @@ func AnalyzeWaste() {
 	if err == nil {
 		wastedResources = append(wastedResources, wastedNATGateways...)
 	} else {
-		fmt.Println(err)
+		log.Errorf("failed to analyze NAT Gateways: %v", err)
 	}
 	wastedEBSVolumes, err := ec2Client.AnalyzeEBSVolumeWaste(context.TODO(), region)
 	if err == nil {
 		wastedResources = append(wastedResources, wastedEBSVolumes...)
 	} else {
-		fmt.Println(err)
+		log.Errorf("failed to analyze EBS Volumes: %v", err)
 	}
 	wastedElasticIPAddresses, err := ec2Client.AnalyzeElasticIPAddressWaste(context.TODO(), region)
 	if err == nil {
 		wastedResources = append(wastedResources, wastedElasticIPAddresses...)
 	} else {
-		fmt.Println(err)
+		log.Errorf("failed to analyze Elastic IP Addresses: %v", err)
 	}
 
 	for _, r := range wastedResources {
-		fmt.Printf("%s - %s: $%f/%s\n", r.Resource.R.Type(), r.Resource.R.ID(), r.Price.Rate, r.Price.Unit)
+		log.Infof("%s - %s: $%f/%s\n", r.Resource.R.Type(), r.Resource.R.ID(), r.Price.Rate, r.Price.Unit)
 	}
 }
