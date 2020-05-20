@@ -52,7 +52,11 @@ func AnalyzeWaste(log *zap.SugaredLogger) {
 		}
 	}
 
-	for _, r := range wastedResources {
-		log.Infof("%s - %s: $%f/%s", r.Resource.R.Type(), r.Resource.R.ID(), r.Price.Rate, r.Price.Unit)
+	if len(wastedResources) == 0 {
+		log.Info("Wow! You don't have any waste. Congratulations!")
+	} else {
+		for _, r := range wastedResources {
+			log.Infof("%s - %s: $%f/%s", r.Resource.R.Type(), r.Resource.R.ID(), r.Price.Rate, r.Price.Unit)
+		}
 	}
 }
