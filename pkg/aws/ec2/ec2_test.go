@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+	"go.uber.org/zap"
 )
 
 type mockedEC2 struct {
@@ -39,7 +40,11 @@ func (suite *EC2TestSuite) SetupTest() {
 	suite.m = new(mockedEC2)
 	suite.p = new(mockedPricing)
 	suite.region = "us-east-1"
-	suite.client = Client{EC2: suite.m, Pricing: suite.p}
+	suite.client = Client{
+		Logger:  zap.NewNop().Sugar(),
+		EC2:     suite.m,
+		Pricing: suite.p,
+	}
 }
 
 func (suite *EC2TestSuite) MockElasticIPAddressPricingGood(unit string, rate string) *mock.Call {

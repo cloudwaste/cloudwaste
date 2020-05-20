@@ -5,6 +5,7 @@ import (
 
 	"github.com/cloudwaste/cloudwaste/cmd/scan"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )
 
@@ -20,13 +21,10 @@ func main() {
 	if err != nil {
 		panic("failed to create logger")
 	}
-	defer func() {
-		err := l.Sync()
-		if err != nil {
-			panic("failed to flush logs")
-		}
-	}()
 	logger := l.Sugar()
+
+	viper.SetEnvPrefix("cloudwaste")
+	viper.AutomaticEnv()
 
 	rootCmd.AddCommand(scan.Cmd(logger))
 	if err := rootCmd.Execute(); err != nil {
