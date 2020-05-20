@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/cloudwaste/cloudwaste/cmd/scan"
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 )
 
 func main() {
@@ -16,9 +16,21 @@ func main() {
 		}
 	)
 
-	rootCmd.AddCommand(scan.Cmd())
+	l, err := zap.NewDevelopment()
+	if err != nil {
+		panic("failed to create logger")
+	}
+	defer func() {
+		err := l.Sync()
+		if err != nil {
+			panic("failed to flush logs")
+		}
+	}()
+	logger := l.Sugar()
+
+	rootCmd.AddCommand(scan.Cmd(logger))
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
+		logger.Errorf("failed to execute root command", zap.Error(err))
 		os.Exit(1)
 	}
 }
