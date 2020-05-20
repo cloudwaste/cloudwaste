@@ -9,11 +9,16 @@
 [![Dependabot Status](https://api.dependabot.com/badges/status?host=github&repo=cloudwaste/cloudwaste)](https://dependabot.com)
 
 # Installation
-`brew install cloudwaste/cloudwaste/cloudwaste`  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
-Download binary from [latest release](https://github.com/cloudwaste/cloudwaste/releases/latest).  
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;**or**  
-Clone and build from source.
+## Homebrew
+`brew install cloudwaste/cloudwaste/cloudwaste`
+## asdf
+Install with [asdf-cloudwaste](https://github.com/cloudwaste/asdf-cloudwaste)
+```
+asdf plugin-add cloudwaste https://github.com/cloudwaste/asdf-cloudwaste.git
+asdf install cloudwaste latest
+```
+## Github Releases
+Download binary from [latest release](https://github.com/cloudwaste/cloudwaste/releases/latest).
 
 # Getting started
 ```
