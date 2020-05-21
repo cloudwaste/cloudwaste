@@ -37,3 +37,15 @@ Flags:
 
 Use "cloudwaste [command] --help" for more information about a command.
 ```
+
+# Features
+Scans for the following wasted resources in your cloud:
+
+- [x] AWS
+  - [x] EBS Volumes
+  - [x] Elastic IP Addresses
+  - [x] DynamoDB Tables
+  - [x] NAT Gateways
+  - [ ] RDS Databases
+- [ ] Azure
+- [ ] GCP
