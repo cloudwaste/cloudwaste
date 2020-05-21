@@ -6,12 +6,16 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/pricing"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 
+	dynamoWaste "github.com/cloudwaste/cloudwaste/pkg/aws/dynamodb"
 	ec2Waste "github.com/cloudwaste/cloudwaste/pkg/aws/ec2"
+	pricingWaste "github.com/cloudwaste/cloudwaste/pkg/aws/pricing"
 	"github.com/cloudwaste/cloudwaste/pkg/aws/util"
 )
 
@@ -40,6 +44,12 @@ func AnalyzeWaste(log *zap.SugaredLogger) {
 		Pricing: pricing.New(sess, pricingAwsConfig),
 	}
 
+	dynamoClient := &dynamoWaste.Client{
+		DynamoDB:   dynamodb.New(sess, aws.NewConfig().WithRegion(region)),
+		Cloudwatch: cloudwatch.New(sess, aws.NewConfig().WithRegion(region)),
+		Pricing:    &pricingWaste.Client{Pricing: pricing.New(sess, aws.NewConfig().WithRegion("us-east-1"))},
+	}
+
 	var wastedResources []util.AWSWastedResource
 
 	// Run all the checks
@@ -52,6 +62,12 @@ func AnalyzeWaste(log *zap.SugaredLogger) {
 	wastedEBSVolumes, err := ec2Client.AnalyzeEBSVolumeWaste(context.TODO(), region)
 	if err == nil {
 		wastedResources = append(wastedResources, wastedEBSVolumes...)
+	} else {
+		log.Errorf("failed to analyze EBS Volumes: %v", err)
+	}
+	wastedDynamoDBTables, err := dynamoClient.AnalyzeDynamodBTableWaste(context.TODO(), region)
+	if err == nil {
+		wastedResources = append(wastedResources, wastedDynamoDBTables...)
 	} else {
 		log.Errorf("failed to analyze EBS Volumes: %v", err)
 	}
