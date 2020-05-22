@@ -2,6 +2,7 @@ package aws
 
 import (
 	"context"
+	"fmt"
 	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -16,14 +17,28 @@ import (
 )
 
 func AnalyzeWaste(log *zap.SugaredLogger) {
-	sess := session.Must(session.NewSession())
+	sess := session.Must(session.NewSessionWithOptions(session.Options{
+		SharedConfigState: session.SharedConfigEnable,
+	}))
 
-	region := viper.GetString(util.FlagRegion)
+	var region string
+
+	if viper.IsSet(util.FlagRegion) {
+		region = viper.GetString(util.FlagRegion)
+	} else if *sess.Config.Region != "" {
+		region = *sess.Config.Region
+	} else {
+		fmt.Println("No region provided or found in AWS config.")
+		os.Exit(-1)
+	}
+
+	awsConfig := aws.NewConfig().WithRegion(region)
+	pricingAwsConfig := aws.NewConfig().WithRegion("us-east-1")
 
 	ec2Client := &ec2Waste.Client{
 		Logger:  log,
-		EC2:     ec2.New(sess, aws.NewConfig().WithRegion(region)),
-		Pricing: pricing.New(sess, aws.NewConfig().WithRegion("us-east-1")),
+		EC2:     ec2.New(sess, awsConfig),
+		Pricing: pricing.New(sess, pricingAwsConfig),
 	}
 
 	var wastedResources []util.AWSWastedResource
