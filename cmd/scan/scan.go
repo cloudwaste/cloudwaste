@@ -1,7 +1,6 @@
 package scan
 
 import (
-	"github.com/aws/aws-sdk-go/aws/endpoints"
 	"github.com/cloudwaste/cloudwaste/pkg/aws"
 	"github.com/cloudwaste/cloudwaste/pkg/aws/util"
 	"github.com/spf13/cobra"
@@ -18,7 +17,7 @@ func Cmd(log *zap.SugaredLogger) *cobra.Command {
 			main(log)
 		},
 	}
-	cmd.PersistentFlags().String(util.FlagRegion, endpoints.UsEast1RegionID, "The AWS region you wish to scan")
+	cmd.PersistentFlags().String(util.FlagRegion, "", "The AWS region you wish to scan. AWS_REGION env var and AWS shared config file are also supported.")
 	err := viper.BindPFlag(util.FlagRegion, cmd.PersistentFlags().Lookup(util.FlagRegion))
 	if err != nil {
 		log.Fatalf("couldn't bind PFlag", err)
