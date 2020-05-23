@@ -1,1 +1,5 @@
 * @timmyers @abatilo
+
+# Not a real person, same as no codeowner
+go.mod @ghost
+go.sum @ghost
