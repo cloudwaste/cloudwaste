@@ -28,7 +28,7 @@ func AnalyzeWaste(log *zap.SugaredLogger) {
 	} else if *sess.Config.Region != "" {
 		region = *sess.Config.Region
 	} else {
-		fmt.Println("No region provided or found in AWS config.")
+		log.Error("no region provided or found in AWS config.")
 		os.Exit(-1)
 	}
 
