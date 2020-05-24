@@ -13,7 +13,24 @@ import (
 	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbiface"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+
+	"github.com/cloudwaste/cloudwaste/pkg/aws/pricing"
+	pricingTest "github.com/cloudwaste/cloudwaste/pkg/aws/pricing/test"
 )
+
+type DynamoDBTestSuite struct {
+	suite.Suite
+	mockedPricing *pricingTest.MockedPricingInterface
+	region        string
+	client        Client
+}
+
+func (suite *DynamoDBTestSuite) SetupTest() {
+	suite.mockedPricing = new(pricingTest.MockedPricingInterface)
+	suite.region = "us-east-1"
+	suite.client = Client{Pricing: suite.mockedPricing}
+}
 
 type mockData struct {
 	Table   *dynamodb.DescribeTableOutput
@@ -161,4 +178,29 @@ func TestGetUnusedDynamoDBTables(t *testing.T) {
 	unusedTables, err = client.GetUnusedDynamoDBTables(context.Background())
 	assert.Nil(unusedTables)
 	assert.NotNil(err)
+}
+
+func (suite *DynamoDBTestSuite) TestGetDynamoDBPricing() {
+	assert := assert.New(suite.T())
+
+	suite.mockedPricing.On("GetProducts", mock.Anything, mock.Anything).
+		Return([]*pricing.AWSPriceItem{
+			{
+				Product: pricing.AWSPriceItemProduct{
+					Attributes: pricing.AWSPriceItemProductAttributes{
+						Location:  "useast1",
+						UsageType: string(ReadCapacityUnitHours),
+					},
+				},
+			},
+		}, nil)
+
+	pricing, err := suite.client.GetDynamoDBTablePricing(context.TODO(), suite.region)
+	if assert.Nil(err) {
+		assert.NotNil(pricing)
+	}
+}
+
+func TestDynamoDBTestSuite(t *testing.T) {
+	suite.Run(t, new(DynamoDBTestSuite))
 }
