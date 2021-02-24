@@ -3,7 +3,7 @@ module github.com/cloudwaste/cloudwaste
 go 1.14
 
 require (
-	github.com/aws/aws-sdk-go v1.37.16
+	github.com/aws/aws-sdk-go v1.37.17
 	github.com/mitchellh/mapstructure v1.4.1
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.1.3
